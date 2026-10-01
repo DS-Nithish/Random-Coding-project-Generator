@@ -3,6 +3,7 @@
 A high-performance, colorful terminal CLI application built in **Rust** that generates curated coding project ideas across various domains and skill levels. Designed according to the specifications in [implementation_plan.md](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/implementation_plan.md).
 
 ---
+![alt text](<Screenshot 2026-10-01 at 11.16.10 PM.png>)
 
 ## 🌟 Key Features
 
