@@ -27,7 +27,7 @@ fn main() {
 
     // 2. Determine execution mode (Direct Flags vs Interactive)
     let has_direct_filter = args.level.is_some() || args.domain.is_some();
-    let has_action_flag = args.steps || args.code || args.doc || args.export;
+    let has_action_flag = args.steps || args.code || args.doc || args.export || args.save_md.is_some();
     let has_source_flag = args.ai || args.github || args.topic.is_some();
 
     if !args.interactive && (has_direct_filter || has_action_flag || has_source_flag) {
@@ -118,11 +118,20 @@ fn run_flag_mode(args: &CliArgs) {
             if args.export {
                 export_project(&project, &args.output);
             }
+            if let Some(ref md_arg) = args.save_md {
+                let default_name = format!("{}.md", project.id.replace('-', "_"));
+                let file_path = if md_arg.trim().is_empty() {
+                    default_name
+                } else {
+                    md_arg.clone()
+                };
+                save_markdown_file(&project, &file_path);
+            }
 
-            if !args.steps && !args.code && !args.doc && !args.export {
+            if !args.steps && !args.code && !args.doc && !args.export && args.save_md.is_none() {
                 println!(
                     "{}",
-                    "💡 Tip: Use --steps, --code, --doc, or --export to unlock full project deliverables!".bright_yellow()
+                    "💡 Tip: Use --steps, --code, --doc, --save-md, or --export to unlock full project deliverables!".bright_yellow()
                 );
                 println!(
                     "   {} cargo run -- --level {} --domain {} --steps --code --doc\n",
@@ -244,7 +253,8 @@ fn run_interactive_mode() {
             "🗺️  Generate Step-by-Step Implementation Roadmap",
             "📦 Generate Single-File Starter Code",
             "📖 Generate Project Documentation & README",
-            "💾 Export Project Bundle to Disk",
+            "📝 Save Project as Markdown (.md) File",
+            "💾 Export Full Project Bundle to Disk",
             "🎲 Re-Roll from Curated Catalog",
             "🤖 Generate Infinite Idea with AI",
             "🐙 Discover Live Project on GitHub",
@@ -262,6 +272,13 @@ fn run_interactive_mode() {
             ui::print_code(&project);
         } else if action.contains("Documentation") {
             ui::print_documentation(&project);
+        } else if action.contains("Markdown") {
+            let default_name = format!("{}.md", project.id.replace('-', "_"));
+            let filename = Text::new("Enter Markdown filename:")
+                .with_default(&default_name)
+                .prompt()
+                .unwrap_or(default_name);
+            save_markdown_file(&project, &filename);
         } else if action.contains("Export") {
             let default_dir = format!("./project_{}", project.id.replace('-', "_"));
             export_project(&project, &default_dir);
@@ -370,4 +387,81 @@ fn export_project(p: &ProjectIdea, target_dir_str: &str) {
     println!("  💻 Starter Code:  {}", code_path.display().to_string().bright_yellow());
     println!("  ⚙️  Spec JSON:    {}", meta_path.display().to_string().bright_magenta());
     println!();
+}
+
+pub fn generate_markdown_content(p: &ProjectIdea) -> String {
+    let mut md = String::new();
+    let source_label = if p.id.starts_with("gh-") {
+        "🐙 GitHub Live Discovery"
+    } else if p.id.starts_with("ai-gen-") {
+        "🤖 AI Architect Generated"
+    } else {
+        "💾 Curated Blueprint"
+    };
+
+    md.push_str(&format!("# {}\n\n", p.title));
+    md.push_str(&format!(
+        "> **Source**: {} | **Domain**: {} | **Difficulty**: {} | **Estimated Duration**: {}\n\n",
+        source_label, p.domain, p.difficulty, p.duration
+    ));
+
+    md.push_str("## 📋 Description\n\n");
+    md.push_str(&format!("{}\n\n", p.description));
+
+    md.push_str("## 🛠️ Recommended Tech Stack\n\n");
+    for tech in &p.technologies {
+        md.push_str(&format!("- `{}`\n", tech));
+    }
+    md.push_str("\n");
+
+    md.push_str("## ✅ Core Requirements\n\n");
+    for req in &p.requirements {
+        md.push_str(&format!("- [ ] {}\n", req));
+    }
+    md.push_str("\n");
+
+    md.push_str("## 🗺️ Step-by-Step Implementation Roadmap\n\n");
+    for (i, step) in p.steps.iter().enumerate() {
+        md.push_str(&format!("{}. **Phase {}**: {}\n", i + 1, i + 1, step));
+    }
+    md.push_str("\n");
+
+    md.push_str("## 📦 Starter Code\n\n");
+    md.push_str(&format!("**File**: `{}` | **Language**: `{}`\n\n", p.starter_code_filename, p.starter_code_language));
+    md.push_str(&format!(
+        "```{}\n{}\n```\n\n",
+        p.starter_code_language, p.starter_code
+    ));
+
+    md.push_str("## 📖 Documentation & Architecture\n\n");
+    md.push_str(&format!("{}\n", p.documentation));
+
+    md
+}
+
+fn save_markdown_file(p: &ProjectIdea, path_str: &str) {
+    let target_path_str = if path_str.ends_with(".md") {
+        path_str.to_string()
+    } else {
+        format!("{}.md", path_str)
+    };
+    let path = Path::new(&target_path_str);
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            let _ = fs::create_dir_all(parent);
+        }
+    }
+
+    let content = generate_markdown_content(p);
+    match fs::write(path, content) {
+        Ok(_) => {
+            println!();
+            println!("{}", "🎉 PROJECT SAVED TO MARKDOWN SUCCESSFULLY!".bold().bright_green());
+            println!("  📄 Markdown File: {}", path.display().to_string().bright_cyan().bold());
+            println!();
+        }
+        Err(e) => {
+            eprintln!("{}", format!("❌ Failed to write Markdown file: {}", e).bright_red());
+        }
+    }
 }

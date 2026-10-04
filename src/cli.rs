@@ -37,6 +37,10 @@ pub struct CliArgs {
     #[arg(short = 'o', long = "output", default_value = "./generated_project")]
     pub output: String,
 
+    /// Save the complete project blueprint into a single Markdown (.md) file
+    #[arg(short = 'm', long = "save-md", num_args = 0..=1, default_missing_value = "")]
+    pub save_md: Option<String>,
+
     /// List all 50 available projects in the catalog
     #[arg(long = "list")]
     pub list: bool,

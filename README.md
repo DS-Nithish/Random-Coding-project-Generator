@@ -62,6 +62,7 @@ You can specify direct filters, generation sources, and choose exactly which del
 | | `--doc` | Display the project documentation and README |
 | `-e` | `--export` | Export project deliverables into a folder |
 | `-o` | `--output` | Destination folder for export (default: `./generated_project`) |
+| `-m` | `--save-md` | Save complete project blueprint as a standalone Markdown (`.md`) file |
 | | `--list` | List all 60 projects in the database |
 | `-h` | `--help` | Show help and options |
 
@@ -106,6 +107,15 @@ cargo run -- --ai --domain ai --level advanced --topic "local multimodal vector 
 
 # Using local Ollama (100% free and private, no key required!)
 cargo run -- --ai --provider ollama --topic "distributed key-value store in rust"
+```
+
+### 8. Save Project as a Standalone Markdown File
+```bash
+# Save to default filename (e.g. project_id.md)
+cargo run -- -d web -l intermediate --save-md
+
+# Save to a custom Markdown file path
+cargo run -- -d cyber -l advanced --save-md ./security_audit_spec.md
 ```
 
 ---
