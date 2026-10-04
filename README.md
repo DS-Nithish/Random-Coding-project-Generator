@@ -11,7 +11,10 @@ A high-performance, colorful terminal CLI application built in **Rust** that gen
 - 🎯 **Domain & Level Filtering**:
   - **Domains**: Web Development (`web`), Mobile Apps (`mobile`), Game Development (`game`), AI & Machine Learning (`ai`), CLI & Systems (`cli`), Cybersecurity & Networking (`cyber`).
   - **Skill Levels**: Beginner, Intermediate, Advanced.
-- 📚 **Extensive Project Catalog**: 60 meticulously detailed projects equipped with real-world requirements, suggested tech stacks, and estimated durations.
+- 💾 **Curated Offline Catalog**: 60 meticulously detailed projects equipped with real-world requirements, suggested tech stacks, and estimated durations.
+- 🤖 **AI Architect Generation**: Infinite, customized project blueprints generated on-the-fly with bespoke starter code and roadmaps via Google Gemini, OpenAI, or local Ollama.
+- 🐙 **GitHub Live Explorer**: Discover real-world open-source templates, boilerplates, and trending projects directly from GitHub.
+- 🛡️ **Offline Fallback Resilience**: Seamless fallback to offline curated blueprints whenever network or API keys are unavailable.
 - 🗺️ **Step-by-Step Roadmaps (On-Demand)**: Clear phase-by-phase implementation milestones for each project idea.
 - 📦 **Self-Contained Starter Code (On-Demand)**: Ready-to-run, single-file templates in Python, Rust, JavaScript, HTML5/CSS, Go, Swift, and C.
 - 📖 **Comprehensive Documentation (On-Demand)**: Ready-to-use READMEs, architecture diagrams, and deployment guidance.
@@ -26,7 +29,7 @@ A high-performance, colorful terminal CLI application built in **Rust** that gen
 
 ### 1. Build and Run Interactively
 
-Launch the interactive prompt to explore ideas with keyboard navigation:
+Launch the interactive prompt to choose your project source (Curated Catalog, AI Architect, or GitHub Live):
 
 ```bash
 cargo run
@@ -42,12 +45,18 @@ cargo run -- --interactive
 
 ## 💻 CLI Flags & Options
 
-You can specify direct filters and choose exactly which deliverables you want to see:
+You can specify direct filters, generation sources, and choose exactly which deliverables you want to see:
 
 | Flag | Long Flag | Description |
 |---|---|---|
 | `-l` | `--level` | Filter by difficulty: `beginner`, `intermediate`, `advanced` |
 | `-d` | `--domain` | Filter by domain: `web`, `mobile`, `game`, `ai`, `cli`, `cyber` |
+| | `--ai` | Generate an infinite dynamic project blueprint using AI |
+| | `--provider` | AI Provider: `gemini` (default), `openai`, or `ollama` |
+| | `--api-key` | AI API Key (or set `GEMINI_API_KEY` / `OPENAI_API_KEY`) |
+| `-t` | `--topic` | Custom topic/keywords for AI prompt or GitHub search |
+| `-g` | `--github` | Discover live open-source project templates from GitHub |
+| | `--github-token` | GitHub access token (optional, increases rate limit to 5000 req/hr) |
 | | `--steps` | Display the step-by-step roadmap |
 | | `--code` | Display the self-contained starter code |
 | | `--doc` | Display the project documentation and README |
@@ -80,18 +89,33 @@ cargo run -- -d web -l beginner --export --output ./my_new_web_project
 cargo run -- -d game
 ```
 
+### 5. Discover a Live Project from GitHub (Web / React / Templates)
+```bash
+cargo run -- --github --domain web
+```
+
+### 6. Search GitHub for a Specific Topic & Export
+```bash
+cargo run -- --github --topic "rust tui tool" --steps --export --output ./my_tui_app
+```
+
+### 7. Generate an Infinite AI Project Blueprint (Gemini, OpenAI, or Ollama)
+```bash
+# Using Gemini (with GEMINI_API_KEY environment variable or --api-key)
+cargo run -- --ai --domain ai --level advanced --topic "local multimodal vector search" --steps --code
+
+# Using local Ollama (100% free and private, no key required!)
+cargo run -- --ai --provider ollama --topic "distributed key-value store in rust"
+```
+
 ---
 
 ## 📁 Architecture & File Layout
 
 - [src/main.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/main.rs): CLI entrypoint, argument dispatch, interactive menu loop, and project file exporter.
+- [src/ai.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/ai.rs): Dynamic AI project generator supporting Google Gemini, OpenAI, and local Ollama.
+- [src/github.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/github.rs): Live GitHub repository and template discovery engine via GitHub REST API.
 - [src/models.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/models.rs): Enums (`Domain`, `Difficulty`) and data models (`ProjectIdea`).
-- [src/ui.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/ui.rs): ANSI color scheme, progress spinner, badges, and card formatting.
+- [src/ui.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/ui.rs): ANSI color scheme, progress spinners, source badges, and card formatting.
 - [src/cli.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/cli.rs): Clap command-line parser definition.
-- [src/database/](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database):
-  - [web.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/web.rs): Web development projects.
-  - [mobile.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/mobile.rs): Mobile app development projects.
-  - [game.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/game.rs): Game development projects.
-  - [ai.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/ai.rs): AI & Machine Learning projects.
-  - [cli_systems.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/cli_systems.rs): CLI & System Tools projects.
-  - [cyber.rs](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database/cyber.rs): Cybersecurity & Networking projects.
+- [src/database/](file:///Users/nithish/Development/Projects/Random-Coding-project-Generator/src/database): Curated offline blueprint catalog across Web, Mobile, Game, AI, CLI, and Cyber domains.

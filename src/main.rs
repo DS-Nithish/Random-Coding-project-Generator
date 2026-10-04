@@ -1,12 +1,15 @@
+mod ai;
 mod cli;
 mod database;
+mod github;
 mod models;
 mod ui;
 
+use ai::AiProvider;
 use clap::Parser;
 use cli::CliArgs;
 use colored::*;
-use inquire::Select;
+use inquire::{Select, Text};
 use models::{Difficulty, Domain, ProjectIdea};
 use std::fs;
 use std::path::Path;
@@ -25,8 +28,9 @@ fn main() {
     // 2. Determine execution mode (Direct Flags vs Interactive)
     let has_direct_filter = args.level.is_some() || args.domain.is_some();
     let has_action_flag = args.steps || args.code || args.doc || args.export;
+    let has_source_flag = args.ai || args.github || args.topic.is_some();
 
-    if !args.interactive && (has_direct_filter || has_action_flag) {
+    if !args.interactive && (has_direct_filter || has_action_flag || has_source_flag) {
         run_flag_mode(&args);
     } else {
         run_interactive_mode();
@@ -72,23 +76,47 @@ fn run_flag_mode(args: &CliArgs) {
         );
     }
 
-    ui::play_randomizer_animation();
+    let project_result: Result<ProjectIdea, String> = if args.ai {
+        let provider = args.provider.as_deref().and_then(AiProvider::parse);
+        let provider_name = provider.map(|p| p.as_str()).unwrap_or("AI");
+        ui::play_ai_animation(provider_name);
+        ai::generate_ai_project(
+            provider,
+            domain,
+            difficulty,
+            args.topic.as_deref(),
+            args.api_key.as_deref(),
+        )
+    } else if args.github {
+        ui::play_github_animation();
+        github::fetch_github_project(
+            domain,
+            difficulty,
+            args.topic.as_deref(),
+            args.github_token.as_deref(),
+        )
+    } else {
+        ui::play_randomizer_animation();
+        database::pick_random(domain, difficulty)
+            .cloned()
+            .ok_or_else(|| "❌ No project matching specified criteria was found in local catalog.".to_string())
+    };
 
-    match database::pick_random(domain, difficulty) {
-        Some(project) => {
-            ui::print_project_card(project);
+    match project_result {
+        Ok(project) => {
+            ui::print_project_card(&project);
 
             if args.steps {
-                ui::print_steps(project);
+                ui::print_steps(&project);
             }
             if args.code {
-                ui::print_code(project);
+                ui::print_code(&project);
             }
             if args.doc {
-                ui::print_documentation(project);
+                ui::print_documentation(&project);
             }
             if args.export {
-                export_project(project, &args.output);
+                export_project(&project, &args.output);
             }
 
             if !args.steps && !args.code && !args.doc && !args.export {
@@ -104,16 +132,35 @@ fn run_flag_mode(args: &CliArgs) {
                 );
             }
         }
-        None => {
+        Err(err) => {
+            println!("{}", format!("❌ Error: {}", err).bold().bright_red());
             println!(
                 "{}",
-                "❌ No project matching specified criteria was found.".bold().bright_red()
+                "💡 Falling back to curated offline catalog...".bright_yellow()
             );
+            if let Some(fallback) = database::pick_random(domain, difficulty) {
+                ui::print_project_card(fallback);
+            }
         }
     }
 }
 
 fn run_interactive_mode() {
+    // Step 1: Select Generation Source
+    let source_options = vec![
+        "💾 Curated Catalog (50 hand-crafted offline blueprints - instant)",
+        "🤖 AI Architect (Infinite custom blueprints via Gemini, OpenAI, or Ollama)",
+        "🐙 GitHub Live Explorer (Discover real-world open source templates & projects)",
+    ];
+
+    let source_choice = Select::new("Choose Project Source:", source_options)
+        .prompt()
+        .unwrap_or("💾 Curated Catalog (50 hand-crafted offline blueprints - instant)");
+
+    let is_ai = source_choice.contains("AI Architect");
+    let is_github = source_choice.contains("GitHub Live");
+
+    // Step 2: Select Domain
     let domain_options = vec![
         "🎲 Any Domain (Surprise Me!)",
         "🌐 Web Development",
@@ -138,6 +185,7 @@ fn run_interactive_mode() {
         _ => None,
     };
 
+    // Step 3: Select Difficulty
     let diff_options = vec![
         "🎲 Any Skill Level (Surprise Me!)",
         "🟢 Beginner",
@@ -156,26 +204,50 @@ fn run_interactive_mode() {
         _ => None,
     };
 
-    ui::play_randomizer_animation();
+    // Step 4: Optional topic prompt for AI/GitHub
+    let mut custom_topic: Option<String> = None;
+    if is_ai || is_github {
+        let prompt_label = if is_ai {
+            "Custom Topic or Idea for AI (Optional, press Enter to skip):"
+        } else {
+            "Custom Keyword or Tag for GitHub Search (Optional, press Enter to skip):"
+        };
 
-    let mut current_project = match database::pick_random(selected_domain, selected_diff) {
-        Some(p) => p,
-        None => {
-            println!("{}", "❌ No projects found for this filter.".bright_red());
-            return;
+        if let Ok(topic_input) = Text::new(prompt_label).prompt() {
+            let trimmed = topic_input.trim();
+            if !trimmed.is_empty() {
+                custom_topic = Some(trimmed.to_string());
+            }
         }
-    };
+    }
 
-    ui::print_project_card(current_project);
+    // Step 5: Fetch or Generate Project
+    let current_project = fetch_project_interactive(
+        is_ai,
+        is_github,
+        selected_domain,
+        selected_diff,
+        custom_topic.as_deref(),
+    );
 
-    // Interactive Action Loop (Step 4 compliance)
+    if current_project.is_none() {
+        println!("{}", "❌ Unable to acquire project blueprint. Exiting.".bright_red());
+        return;
+    }
+
+    let mut project = current_project.unwrap();
+    ui::print_project_card(&project);
+
+    // Step 6: Interactive Action Loop
     loop {
         let action_options = vec![
             "🗺️  Generate Step-by-Step Implementation Roadmap",
             "📦 Generate Single-File Starter Code",
             "📖 Generate Project Documentation & README",
             "💾 Export Project Bundle to Disk",
-            "🎲 Re-Roll / Generate Another Random Project",
+            "🎲 Re-Roll from Curated Catalog",
+            "🤖 Generate Infinite Idea with AI",
+            "🐙 Discover Live Project on GitHub",
             "🚪 Exit",
         ];
 
@@ -185,24 +257,67 @@ fn run_interactive_mode() {
         };
 
         if action.contains("Roadmap") {
-            ui::print_steps(current_project);
+            ui::print_steps(&project);
         } else if action.contains("Starter Code") {
-            ui::print_code(current_project);
+            ui::print_code(&project);
         } else if action.contains("Documentation") {
-            ui::print_documentation(current_project);
+            ui::print_documentation(&project);
         } else if action.contains("Export") {
-            let default_dir = format!("./project_{}", current_project.id.replace('-', "_"));
-            export_project(current_project, &default_dir);
+            let default_dir = format!("./project_{}", project.id.replace('-', "_"));
+            export_project(&project, &default_dir);
         } else if action.contains("Re-Roll") {
             ui::play_randomizer_animation();
             if let Some(next_p) = database::pick_random(selected_domain, selected_diff) {
-                current_project = next_p;
-                ui::print_project_card(current_project);
+                project = next_p.clone();
+                ui::print_project_card(&project);
+            }
+        } else if action.contains("AI") {
+            if let Some(next_p) = fetch_project_interactive(true, false, selected_domain, selected_diff, custom_topic.as_deref()) {
+                project = next_p;
+                ui::print_project_card(&project);
+            }
+        } else if action.contains("GitHub") {
+            if let Some(next_p) = fetch_project_interactive(false, true, selected_domain, selected_diff, custom_topic.as_deref()) {
+                project = next_p;
+                ui::print_project_card(&project);
             }
         } else {
             println!("{}", "👋 Happy coding! Build something legendary.".bright_magenta().bold());
             break;
         }
+    }
+}
+
+fn fetch_project_interactive(
+    is_ai: bool,
+    is_github: bool,
+    domain: Option<Domain>,
+    difficulty: Option<Difficulty>,
+    topic: Option<&str>,
+) -> Option<ProjectIdea> {
+    if is_ai {
+        ui::play_ai_animation("AI");
+        match ai::generate_ai_project(None, domain, difficulty, topic, None) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                println!("{}", format!("⚠️  AI Generation Notice: {}", e).yellow());
+                println!("{}", "🔄 Falling back to curated offline blueprints...".bright_cyan());
+                database::pick_random(domain, difficulty).cloned()
+            }
+        }
+    } else if is_github {
+        ui::play_github_animation();
+        match github::fetch_github_project(domain, difficulty, topic, None) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                println!("{}", format!("⚠️  GitHub Explorer Notice: {}", e).yellow());
+                println!("{}", "🔄 Falling back to curated offline blueprints...".bright_cyan());
+                database::pick_random(domain, difficulty).cloned()
+            }
+        }
+    } else {
+        ui::play_randomizer_animation();
+        database::pick_random(domain, difficulty).cloned()
     }
 }
 

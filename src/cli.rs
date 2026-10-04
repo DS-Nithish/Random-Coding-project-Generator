@@ -44,4 +44,28 @@ pub struct CliArgs {
     /// Force interactive terminal wizard mode
     #[arg(short = 'i', long = "interactive")]
     pub interactive: bool,
+
+    /// Generate an infinite dynamic project blueprint using AI (Gemini, OpenAI, or Ollama)
+    #[arg(long = "ai")]
+    pub ai: bool,
+
+    /// AI Provider to use: gemini (default), openai, or ollama
+    #[arg(long = "provider")]
+    pub provider: Option<String>,
+
+    /// API Key for AI provider (overrides GEMINI_API_KEY / OPENAI_API_KEY env vars)
+    #[arg(long = "api-key")]
+    pub api_key: Option<String>,
+
+    /// Custom topic, prompt, or keywords for AI generation or GitHub search
+    #[arg(short = 't', long = "topic")]
+    pub topic: Option<String>,
+
+    /// Discover live open-source project templates and blueprints directly from GitHub
+    #[arg(short = 'g', long = "github")]
+    pub github: bool,
+
+    /// GitHub personal access token (optional, increases rate limit to 5000 req/hr)
+    #[arg(long = "github-token")]
+    pub github_token: Option<String>,
 }

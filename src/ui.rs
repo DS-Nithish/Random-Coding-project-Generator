@@ -47,6 +47,60 @@ pub fn play_randomizer_animation() {
     spinner.finish_and_clear();
 }
 
+pub fn play_ai_animation(provider_name: &str) {
+    let spinner = ProgressBar::new_spinner();
+    spinner.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+            .template("{spinner:.bright_magenta} {msg}")
+            .unwrap(),
+    );
+
+    let messages = [
+        format!("Connecting to {} neural network...", provider_name),
+        "Generating unique project architecture...".to_string(),
+        "Synthesizing customized starter code...".to_string(),
+        "Drafting comprehensive implementation steps...".to_string(),
+        "✨ AI Blueprint Synthesized!".to_string(),
+    ];
+
+    for msg in &messages {
+        spinner.set_message(msg.bright_magenta().bold().to_string());
+        for _ in 0..5 {
+            spinner.tick();
+            sleep(Duration::from_millis(45));
+        }
+    }
+    spinner.finish_and_clear();
+}
+
+pub fn play_github_animation() {
+    let spinner = ProgressBar::new_spinner();
+    spinner.set_style(
+        ProgressStyle::default_spinner()
+            .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+            .template("{spinner:.bright_cyan} {msg}")
+            .unwrap(),
+    );
+
+    let messages = [
+        "Connecting to GitHub REST API...",
+        "Searching trending repositories & starter kits...",
+        "Analyzing community templates & stars...",
+        "Fetching repository README & specs...",
+        "🐙 Live GitHub Blueprint Discovered!",
+    ];
+
+    for msg in &messages {
+        spinner.set_message(msg.bright_cyan().bold().to_string());
+        for _ in 0..5 {
+            spinner.tick();
+            sleep(Duration::from_millis(40));
+        }
+    }
+    spinner.finish_and_clear();
+}
+
 pub fn difficulty_badge(diff: Difficulty) -> ColoredString {
     match diff {
         Difficulty::Beginner => " BEGINNER ".bold().on_green().black(),
@@ -66,11 +120,22 @@ pub fn domain_badge(domain: Domain) -> ColoredString {
     }
 }
 
+pub fn source_badge(id: &str) -> ColoredString {
+    if id.starts_with("gh-") {
+        " 🐙 GITHUB LIVE ".bold().on_cyan().black()
+    } else if id.starts_with("ai-gen-") {
+        " 🤖 AI GENERATED ".bold().on_magenta().bright_white()
+    } else {
+        " 💾 CURATED BLUEPRINT ".bold().on_bright_black().bright_white()
+    }
+}
+
 pub fn print_project_card(p: &ProjectIdea) {
     println!();
     println!("{}", "═".repeat(75).bright_cyan());
     println!(
-        " {}  {}  {}",
+        " {} {} {} {}",
+        source_badge(&p.id),
         domain_badge(p.domain),
         difficulty_badge(p.difficulty),
         format!("⏱️  {}", p.duration).bright_yellow().bold()
